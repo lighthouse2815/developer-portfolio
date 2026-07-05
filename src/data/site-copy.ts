@@ -289,6 +289,10 @@ export const siteCopy = {
         vi: 'Chua gui duoc thong tin luc nay. Vui long thu lai hoac lien he qua email truc tiep.',
         en: 'Your message could not be submitted right now. Please try again or contact Duong directly by email.',
       },
+      rateLimited: {
+        vi: 'Ban gui qua nhanh. Vui long doi it phut roi thu lai.',
+        en: 'You are sending messages too quickly. Please wait a few minutes and try again.',
+      },
     },
   },
   detail: {

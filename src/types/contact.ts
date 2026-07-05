@@ -6,6 +6,7 @@ export type ContactLeadPayload = {
   message: string
   locale: Locale
   sourceUrl?: string
+  company?: string
 }
 
 export type ContactApiSuccess = {
@@ -18,6 +19,8 @@ export type ContactApiFailure = {
   ok: false
   code:
     | 'invalid_request'
+    | 'origin_not_allowed'
+    | 'rate_limited'
     | 'server_misconfigured'
     | 'lead_saved_email_failed'
     | 'server_error'

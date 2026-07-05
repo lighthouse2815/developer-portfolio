@@ -15,6 +15,7 @@ type NormalizedLeadPayload = {
   message: string
   locale: Locale
   sourceUrl: string | null
+  company: string
 }
 
 type RuntimeConfig = {
@@ -26,6 +27,7 @@ type RuntimeConfig = {
 }
 
 const jsonHeaders = {
+  'cache-control': 'no-store',
   'content-type': 'application/json; charset=utf-8',
 }
 
@@ -64,6 +66,7 @@ function normalizePayload(payload: ContactLeadPayload): NormalizedLeadPayload | 
   const message = payload.message?.trim()
   const locale = payload.locale === 'en' ? 'en' : payload.locale === 'vi' ? 'vi' : null
   const sourceUrl = payload.sourceUrl?.trim()
+  const company = payload.company?.trim() ?? ''
 
   if (!name || !email || !message || !locale) {
     return null
@@ -85,12 +88,42 @@ function normalizePayload(payload: ContactLeadPayload): NormalizedLeadPayload | 
     return null
   }
 
+  if (company.length > 240) {
+    return null
+  }
+
   return {
     name,
     email,
     message,
     locale,
     sourceUrl: sourceUrl || null,
+    company,
+  }
+}
+
+function getClientIp(request: Request) {
+  const forwarded = request.headers.get('x-forwarded-for')
+  const connecting = request.headers.get('cf-connecting-ip')
+  const realIp = request.headers.get('x-real-ip')
+  const rawIp = forwarded?.split(',')[0]?.trim() || connecting?.trim() || realIp?.trim() || null
+
+  return rawIp && rawIp.length <= 80 ? rawIp : null
+}
+
+function isAllowedOrigin(request: Request) {
+  const origin = request.headers.get('origin')
+
+  if (!origin) {
+    return true
+  }
+
+  try {
+    const originUrl = new URL(origin)
+    const requestUrl = new URL(request.url)
+    return originUrl.host === requestUrl.host
+  } catch {
+    return false
   }
 }
 
@@ -166,7 +199,10 @@ async function ensureTable(sql: any) {
       message TEXT NOT NULL,
       locale TEXT NOT NULL,
       source_url TEXT,
+      ip_address TEXT,
       user_agent TEXT,
+      spam_trap TEXT,
+      rejected_reason TEXT,
       delivery_status TEXT NOT NULL DEFAULT 'pending',
       owner_email_id TEXT,
       reply_email_id TEXT,
@@ -175,9 +211,58 @@ async function ensureTable(sql: any) {
       notified_at TIMESTAMPTZ
     )
   `
+
+  await sql`ALTER TABLE contact_leads ADD COLUMN IF NOT EXISTS ip_address TEXT`
+  await sql`ALTER TABLE contact_leads ADD COLUMN IF NOT EXISTS spam_trap TEXT`
+  await sql`ALTER TABLE contact_leads ADD COLUMN IF NOT EXISTS rejected_reason TEXT`
+  await sql`
+    CREATE INDEX IF NOT EXISTS contact_leads_ip_created_at_idx
+    ON contact_leads (ip_address, created_at DESC)
+  `
+  await sql`
+    CREATE INDEX IF NOT EXISTS contact_leads_email_created_at_idx
+    ON contact_leads (email, created_at DESC)
+  `
 }
 
-async function saveLead(sql: any, payload: NormalizedLeadPayload, userAgent: string | null) {
+async function isRateLimited(sql: any, email: string, ipAddress: string | null) {
+  const rows = (await sql`
+    SELECT
+      COALESCE(SUM(
+        CASE
+          WHEN ${ipAddress} IS NOT NULL
+            AND ip_address = ${ipAddress}
+            AND created_at > NOW() - INTERVAL '10 minutes'
+          THEN 1
+          ELSE 0
+        END
+      ), 0)::int AS ip_hits_10m,
+      COALESCE(SUM(
+        CASE
+          WHEN email = ${email}
+            AND created_at > NOW() - INTERVAL '30 minutes'
+          THEN 1
+          ELSE 0
+        END
+      ), 0)::int AS email_hits_30m
+    FROM contact_leads
+    WHERE created_at > NOW() - INTERVAL '30 minutes'
+      AND (
+        email = ${email}
+        OR (${ipAddress} IS NOT NULL AND ip_address = ${ipAddress})
+      )
+  `) as Array<{ ip_hits_10m: number | string; email_hits_30m: number | string }>
+
+  const summary = rows[0] ?? { ip_hits_10m: 0, email_hits_30m: 0 }
+  return Number(summary.ip_hits_10m) >= 4 || Number(summary.email_hits_30m) >= 3
+}
+
+async function saveLead(
+  sql: any,
+  payload: NormalizedLeadPayload,
+  userAgent: string | null,
+  ipAddress: string | null,
+) {
   const insertedRows = (await sql`
     INSERT INTO contact_leads (
       name,
@@ -185,14 +270,18 @@ async function saveLead(sql: any, payload: NormalizedLeadPayload, userAgent: str
       message,
       locale,
       source_url,
-      user_agent
+      ip_address,
+      user_agent,
+      spam_trap
     ) VALUES (
       ${payload.name},
       ${payload.email},
       ${payload.message},
       ${payload.locale},
       ${payload.sourceUrl},
-      ${userAgent}
+      ${ipAddress},
+      ${userAgent},
+      ${payload.company || null}
     )
     RETURNING id
   `) as LeadRow[]
@@ -225,6 +314,10 @@ async function updateLeadDelivery(
 }
 
 export async function POST(request: Request) {
+  if (!isAllowedOrigin(request)) {
+    return jsonResponse({ ok: false, code: 'origin_not_allowed' }, { status: 403 })
+  }
+
   let payload: ContactLeadPayload
 
   try {
@@ -239,6 +332,10 @@ export async function POST(request: Request) {
     return jsonResponse({ ok: false, code: 'invalid_request' }, { status: 400 })
   }
 
+  if (normalizedPayload.company) {
+    return jsonResponse({ ok: true, leadId: 0, deliveryStatus: 'sent' }, { status: 200 })
+  }
+
   let runtimeConfig: RuntimeConfig
 
   try {
@@ -250,11 +347,17 @@ export async function POST(request: Request) {
   const sql = neon(runtimeConfig.databaseUrl)
   const resend = new Resend(runtimeConfig.resendApiKey)
   const userAgent = request.headers.get('user-agent')
+  const ipAddress = getClientIp(request)
   let leadId: number
 
   try {
     await ensureTable(sql)
-    leadId = await saveLead(sql, normalizedPayload, userAgent)
+
+    if (await isRateLimited(sql, normalizedPayload.email, ipAddress)) {
+      return jsonResponse({ ok: false, code: 'rate_limited' }, { status: 429 })
+    }
+
+    leadId = await saveLead(sql, normalizedPayload, userAgent, ipAddress)
   } catch {
     return jsonResponse({ ok: false, code: 'server_error' }, { status: 500 })
   }

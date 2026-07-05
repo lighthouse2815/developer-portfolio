@@ -71,6 +71,15 @@ Notes:
 
 If the lead is saved but the email send fails, the API returns a partial-failure response and the UI shows the correct status instead of a fake success.
 
+## Deployment hardening
+
+This repo also includes:
+
+- `vercel.json` for SPA rewrites so `BrowserRouter` routes like `/projects/:slug` do not 404 on refresh
+- same-origin checks on `POST /api/contact`
+- a honeypot field to catch basic bots
+- DB-backed rate limiting by IP and email to reduce repeated spam submissions
+
 ## Build
 
 ```bash

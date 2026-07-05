@@ -19,15 +19,17 @@ type ContactForm = {
   name: string
   email: string
   message: string
+  company: string
 }
 
-type ContactErrors = Partial<Record<keyof ContactForm, string>>
-type SubmitStatus = 'idle' | 'sending' | 'success' | 'partial' | 'error'
+type ContactErrors = Partial<Record<'name' | 'email' | 'message', string>>
+type SubmitStatus = 'idle' | 'sending' | 'success' | 'partial' | 'error' | 'rateLimited'
 
 const initialForm: ContactForm = {
   name: '',
   email: '',
   message: '',
+  company: '',
 }
 
 function validate(values: ContactForm, locale: Locale): ContactErrors {
@@ -65,7 +67,9 @@ export function ContactSection() {
       const value = event.target.value
 
       setForm((current) => ({ ...current, [field]: value }))
-      setErrors((current) => ({ ...current, [field]: undefined }))
+      if (field !== 'company') {
+        setErrors((current) => ({ ...current, [field]: undefined }))
+      }
       setStatus('idle')
     }
 
@@ -110,6 +114,11 @@ export function ContactSection() {
         return
       }
 
+      if (!result.ok && result.code === 'rate_limited') {
+        setStatus('rateLimited')
+        return
+      }
+
       setStatus('error')
     } catch {
       setStatus('error')
@@ -129,13 +138,19 @@ export function ContactSection() {
               'border border-amber-300/40 bg-amber-500/10 text-amber-700 dark:text-amber-300',
             message: getLocalizedValue(locale, siteCopy.contact.feedback.partial),
           }
-        : status === 'error'
+        : status === 'rateLimited'
           ? {
               className:
-                'border border-red-300/40 bg-red-500/10 text-red-600 dark:text-red-300',
-              message: getLocalizedValue(locale, siteCopy.contact.feedback.error),
+                'border border-amber-300/40 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+              message: getLocalizedValue(locale, siteCopy.contact.feedback.rateLimited),
             }
-          : null
+          : status === 'error'
+            ? {
+                className:
+                  'border border-red-300/40 bg-red-500/10 text-red-600 dark:text-red-300',
+                message: getLocalizedValue(locale, siteCopy.contact.feedback.error),
+              }
+            : null
 
   return (
     <section id="contact" className="px-4 sm:px-6 lg:px-8">
@@ -229,6 +244,18 @@ export function ContactSection() {
             </div>
 
             <form className="mt-2 grid gap-3" onSubmit={handleSubmit} noValidate>
+              <div className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+                <label htmlFor="company">Company</label>
+                <input
+                  id="company"
+                  name="company"
+                  tabIndex={-1}
+                  autoComplete="organization"
+                  value={form.company}
+                  onChange={handleFieldChange('company')}
+                />
+              </div>
+
               <TextField
                 id="name"
                 label={getLocalizedValue(locale, siteCopy.contact.nameLabel)}
