@@ -1,6 +1,6 @@
-# Dương Portfolio
+# Duong Portfolio
 
-Portfolio cá nhân cho mục tiêu thực tập hoặc fresher developer. Dự án được dựng bằng `React + TypeScript + Vite`, tập trung vào cách trình bày project như case study thật thay vì một landing page template cơ bản.
+Premium developer portfolio built with `React + TypeScript + Vite`.
 
 ## Stack
 
@@ -9,30 +9,75 @@ Portfolio cá nhân cho mục tiêu thực tập hoặc fresher developer. Dự 
 - Vite
 - Tailwind CSS v4
 - Framer Motion
-- Lucide React
 - React Router
-- Redux Toolkit + React Redux
+- Redux Toolkit
+- Vercel Functions
+- Neon Postgres
+- Resend
 
-## Chạy local
+## Local frontend only
 
 ```bash
 npm install
 npm run dev
 ```
 
-Mặc định Vite chạy tại:
+Default Vite URL:
 
 ```bash
 http://127.0.0.1:5173
 ```
 
-## Build production
+## Local frontend + serverless API
+
+The contact form now posts to `POST /api/contact`.
+
+To run the Vite app together with the serverless function locally:
+
+```bash
+npm run dev:serverless
+```
+
+This uses `npx vercel dev`, which serves both the frontend and `api/contact.ts`.
+
+## Environment variables
+
+Copy `.env.example` to `.env.local` and fill in real values:
+
+```bash
+DATABASE_URL="postgresql://user:password@your-neon-endpoint.neon.tech/neondb?sslmode=require"
+RESEND_API_KEY="re_xxxxxxxxx"
+LEAD_FROM_EMAIL="Portfolio <portfolio@your-domain.com>"
+LEAD_TO_EMAIL="your-inbox@example.com"
+LEAD_REPLY_ENABLED="true"
+```
+
+Notes:
+
+- `DATABASE_URL` should point to a Neon Postgres database.
+- `LEAD_FROM_EMAIL` must use a domain verified in Resend.
+- `LEAD_TO_EMAIL` is the inbox that receives new portfolio leads.
+- `LEAD_REPLY_ENABLED=false` disables the auto-reply email to visitors.
+
+## Contact flow
+
+`POST /api/contact` does all of the following:
+
+1. Validates the payload on the server.
+2. Creates the `contact_leads` table automatically if it does not exist yet.
+3. Stores the lead in Postgres.
+4. Sends a notification email to you through Resend.
+5. Sends a confirmation email back to the visitor.
+
+If the lead is saved but the email send fails, the API returns a partial-failure response and the UI shows the correct status instead of a fake success.
+
+## Build
 
 ```bash
 npm run build
 ```
 
-Kết quả sẽ được xuất ra thư mục `dist/`.
+This runs TypeScript checks for the frontend, Vite config, and the serverless API before building the site.
 
 ## Lint
 
@@ -40,47 +85,18 @@ Kết quả sẽ được xuất ra thư mục `dist/`.
 npm run lint
 ```
 
-## Cấu trúc thư mục
+## Important files
 
-```text
-src/
-  app/         Router, store, slice
-  components/  Reusable section helpers và project card
-  data/        Dữ liệu portfolio tách riêng khỏi UI
-  hooks/       Theme sync
-  layout/      Header, footer, page shell
-  pages/       Home page, project detail page, not found page
-  project/     Block riêng cho project detail
-  sections/    Hero, About, Skills, Projects, Experience, Contact
-  types/       TypeScript types
-  ui/          Button, panel, form field, theme toggle
-  utils/       Helper nhỏ
-```
+- `api/contact.ts`: Vercel serverless endpoint for lead storage and email delivery
+- `src/sections/contact-section.tsx`: real frontend submit flow for the contact form
+- `src/data/site-copy.ts`: bilingual UI copy, including contact form feedback states
+- `src/types/contact.ts`: shared request and response types for the contact flow
 
-## Nội dung chính
+## Deployment
 
-- `src/data/profile.ts`: thông tin cá nhân, social link, hero content
-- `src/data/skills.ts`: nhóm kỹ năng
-- `src/data/projects.ts`: danh sách project và nội dung detail page
-- `src/data/timeline.ts`: learning journey
+This repo is set up for Vercel-style deployment:
 
-## Những phần đã polish
+- frontend static build from Vite
+- serverless API in `/api`
 
-- Hero theo hướng split layout, không dùng hero centered kiểu template cũ
-- Hệ token dark/light mode thống nhất trên toàn site
-- Skills section theo bento grid thay vì card lặp đều
-- Projects section có spotlight card và detail page riêng cho từng project
-- Contact form có validate frontend và success state
-- Motion chỉ dùng ở các điểm cần hierarchy và cảm giác tương tác
-
-## Placeholder cần thay trước khi dùng thật
-
-- `public/duong-cv.txt`: hiện là file placeholder, nên thay bằng CV PDF chính thức
-- `src/data/profile.ts`: cập nhật lại GitHub và LinkedIn thật
-- `src/data/projects.ts`: nếu có demo hoặc repo public cụ thể, thay link cho từng project
-- Screenshot thật cho từng project có thể bổ sung thêm ở project detail page
-
-## Ghi chú
-
-- Ảnh project đang dùng visual placeholder để giữ layout ổn định trong giai đoạn đầu.
-- Dự án dùng `BrowserRouter`. Nếu deploy lên static host không có rewrite rule, cần cấu hình fallback route tương ứng.
+If you deploy somewhere else, move `api/contact.ts` to the equivalent function runtime for that platform.

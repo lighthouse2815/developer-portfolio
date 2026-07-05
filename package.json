@@ -7,11 +7,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:serverless": "npx vercel dev"
   },
   "dependencies": {
     "@fontsource-variable/outfit": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
+    "@neondatabase/serverless": "^1.1.0",
     "@reduxjs/toolkit": "^2.12.0",
     "@tailwindcss/vite": "^4.3.2",
     "clsx": "^2.1.1",
@@ -21,6 +23,7 @@
     "react-dom": "^19.2.7",
     "react-redux": "^9.3.0",
     "react-router-dom": "^7.18.1",
+    "resend": "^6.17.1",
     "tailwindcss": "^4.3.2"
   },
   "devDependencies": {
@@ -30,6 +33,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "oxlint": "^1.71.0",
     "typescript": "~6.0.2",
+    "vercel": "^54.20.1",
     "vite": "^8.1.1"
   }
 }

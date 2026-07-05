@@ -2,6 +2,7 @@ import { BriefcaseBusiness, FolderGit2, Mail } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
+import type { ContactApiResponse, ContactLeadPayload } from '../types/contact'
 import type { Locale } from '../types/portfolio'
 import { Reveal } from '../components/reveal'
 import { SectionHeading } from '../components/section-heading'
@@ -21,6 +22,7 @@ type ContactForm = {
 }
 
 type ContactErrors = Partial<Record<keyof ContactForm, string>>
+type SubmitStatus = 'idle' | 'sending' | 'success' | 'partial' | 'error'
 
 const initialForm: ContactForm = {
   name: '',
@@ -55,7 +57,7 @@ export function ContactSection() {
   const locale = useLocale()
   const [form, setForm] = useState<ContactForm>(initialForm)
   const [errors, setErrors] = useState<ContactErrors>({})
-  const [status, setStatus] = useState<'idle' | 'sending' | 'success'>('idle')
+  const [status, setStatus] = useState<SubmitStatus>('idle')
 
   const handleFieldChange =
     (field: keyof ContactForm) =>
@@ -78,10 +80,62 @@ export function ContactSection() {
     }
 
     setStatus('sending')
-    await new Promise((resolve) => window.setTimeout(resolve, 800))
-    setStatus('success')
-    setForm(initialForm)
+
+    try {
+      const payload: ContactLeadPayload = {
+        ...form,
+        locale,
+        sourceUrl: window.location.href,
+      }
+
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      const result = (await response.json()) as ContactApiResponse
+
+      if (response.ok && result.ok) {
+        setStatus('success')
+        setForm(initialForm)
+        return
+      }
+
+      if (!result.ok && result.saved) {
+        setStatus('partial')
+        setForm(initialForm)
+        return
+      }
+
+      setStatus('error')
+    } catch {
+      setStatus('error')
+    }
   }
+
+  const feedback =
+    status === 'success'
+      ? {
+          className:
+            'border border-emerald-300/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
+          message: getLocalizedValue(locale, siteCopy.contact.feedback.success),
+        }
+      : status === 'partial'
+        ? {
+            className:
+              'border border-amber-300/40 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+            message: getLocalizedValue(locale, siteCopy.contact.feedback.partial),
+          }
+        : status === 'error'
+          ? {
+              className:
+                'border border-red-300/40 bg-red-500/10 text-red-600 dark:text-red-300',
+              message: getLocalizedValue(locale, siteCopy.contact.feedback.error),
+            }
+          : null
 
   return (
     <section id="contact" className="px-4 sm:px-6 lg:px-8">
@@ -155,18 +209,21 @@ export function ContactSection() {
                 <p className="text-sm font-medium text-[var(--color-text-muted)]">
                   {getLocalizedValue(locale, siteCopy.contact.formLabel)}
                 </p>
-                <h3 className="mt-2 text-3xl">{getLocalizedValue(locale, siteCopy.contact.formTitle)}</h3>
+                <h3 className="mt-2 text-3xl">
+                  {getLocalizedValue(locale, siteCopy.contact.formTitle)}
+                </h3>
               </div>
             </div>
 
             <div className="mt-6 min-h-14">
-              {status === 'success' ? (
+              {feedback ? (
                 <motion.div
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="rounded-[1.5rem] border border-emerald-300/40 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-600 dark:text-emerald-300"
+                  className={`rounded-[1.5rem] px-4 py-3 text-sm font-medium ${feedback.className}`}
+                  aria-live="polite"
                 >
-                  {getLocalizedValue(locale, siteCopy.common.messageSent)}
+                  {feedback.message}
                 </motion.div>
               ) : null}
             </div>
@@ -180,6 +237,7 @@ export function ContactSection() {
                 value={form.name}
                 onChange={handleFieldChange('name')}
                 error={errors.name}
+                disabled={status === 'sending'}
               />
               <TextField
                 id="email"
@@ -189,6 +247,7 @@ export function ContactSection() {
                 value={form.email}
                 onChange={handleFieldChange('email')}
                 error={errors.email}
+                disabled={status === 'sending'}
               />
               <TextArea
                 id="message"
@@ -198,6 +257,7 @@ export function ContactSection() {
                 value={form.message}
                 onChange={handleFieldChange('message')}
                 error={errors.message}
+                disabled={status === 'sending'}
               />
               <div className="pt-2">
                 <Button type="submit" disabled={status === 'sending'}>

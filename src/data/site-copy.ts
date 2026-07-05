@@ -276,6 +276,20 @@ export const siteCopy = {
         en: 'The message should be a bit longer so I can understand your request clearly.',
       },
     },
+    feedback: {
+      success: {
+        vi: 'Thong tin da duoc gui thanh cong. Duong cung da nhan duoc email thong bao.',
+        en: 'Your message was sent successfully, and Duong has been notified by email.',
+      },
+      partial: {
+        vi: 'Thong tin da duoc luu, nhung email thong bao chua gui duoc. Neu can gap, vui long email truc tiep.',
+        en: 'Your message was saved, but the email notification could not be sent. If urgent, please email directly.',
+      },
+      error: {
+        vi: 'Chua gui duoc thong tin luc nay. Vui long thu lai hoac lien he qua email truc tiep.',
+        en: 'Your message could not be submitted right now. Please try again or contact Duong directly by email.',
+      },
+    },
   },
   detail: {
     backToProjects: {
