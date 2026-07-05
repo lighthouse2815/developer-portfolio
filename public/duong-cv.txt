@@ -1,0 +1,19 @@
+Dương
+Web Developer / Full-stack Developer / Frontend Developer Intern
+
+Email: lethianhduong0409@gmail.com
+GitHub: https://github.com/your-github
+LinkedIn: https://linkedin.com/in/your-linkedin
+
+Tóm tắt:
+Sinh viên định hướng phát triển phần mềm, yêu thích xây dựng sản phẩm web hoàn chỉnh từ frontend, backend đến database.
+Quan tâm đến clean code, cấu trúc dự án rõ ràng, API contract, database design và UI/UX.
+
+Project nổi bật:
+- Quan4 Culinary Tourism System
+- WordUp English Vocabulary App
+- Dark Survival RPG Game
+- Portfolio Website
+
+Ghi chú:
+Đây là CV text placeholder trong repo demo. Hãy thay bằng bản PDF chính thức trước khi dùng để ứng tuyển.

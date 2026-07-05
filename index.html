@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Portfolio của Dương - fresher developer tập trung vào frontend, backend, database và trải nghiệm sản phẩm."
+    />
+    <meta name="theme-color" content="#060d18" />
+    <script>
+      const storedTheme = localStorage.getItem('duong-portfolio-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const storedLocale = localStorage.getItem('duong-portfolio-locale');
+      const mode = storedTheme === 'light' || storedTheme === 'dark'
+        ? storedTheme
+        : prefersDark
+          ? 'dark'
+          : 'light';
+      const locale = storedLocale === 'vi' || storedLocale === 'en'
+        ? storedLocale
+        : navigator.language.toLowerCase().startsWith('vi')
+          ? 'vi'
+          : 'en';
+      const titles = {
+        vi: 'Dương Portfolio',
+        en: 'Duong Portfolio',
+      };
+      const descriptions = {
+        vi: 'Portfolio của Dương, fresher developer tập trung vào frontend, backend, database và tư duy làm sản phẩm.',
+        en: 'Portfolio of Duong, a fresher developer focused on frontend, backend, databases, and product thinking.',
+      };
+      document.documentElement.classList.toggle('dark', mode === 'dark');
+      document.documentElement.dataset.theme = mode;
+      document.documentElement.dataset.locale = locale;
+      document.documentElement.lang = locale;
+      document.title = titles[locale];
+      const descriptionTag = document.querySelector('meta[name="description"]');
+      if (descriptionTag) {
+        descriptionTag.setAttribute('content', descriptions[locale]);
+      }
+    </script>
+    <title>Dương Portfolio</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
